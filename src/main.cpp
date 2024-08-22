@@ -19,6 +19,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <algorithm> // for copy() and assign()  
+#include <iterator> // for back_inserter  
+
 // Mine
 #include <Shader.h>
 #include <Texture.h>
@@ -34,6 +37,8 @@ constexpr int32_t GL_VERSION_MAJOR = 4;
 constexpr int32_t GL_VERSION_MINOR = 5;
 
 glm::vec4 clear_color = glm::vec4(.55f, .55f, .55f, 1.f);
+
+constexpr size_t ONE_DRAW_TRANSFORMS = GL_MAX_ELEMENT_INDEX * 2;
 
 #pragma region TetrahedronDeclaration
 
@@ -283,7 +288,7 @@ void setupObjects()
     glEnableVertexAttribArray(4);
 
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, UINT_MAX / 2, modelTransforms.data(), GL_STATIC_DRAW);
 
     // Transform Matrix
     glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
@@ -358,9 +363,11 @@ void tetrahedron(int level, int levelBefore)
         temps.clear();
     }
 
+    /*
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data(), GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data());
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    */
 
     /* RECURSION
     if (level == 0)
@@ -400,9 +407,43 @@ void update()
     model = glm::rotate(model, glm::radians(rotationX), glm::vec3(1.f, 0.f, 0.f));
     */
 
-    glBindVertexArray(VAO);
-    glDrawElementsInstanced(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0, modelTransforms.size());
-    glBindVertexArray(0);
+    if (modelTransforms.size() <= ONE_DRAW_TRANSFORMS) {
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data());
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        
+        glBindVertexArray(VAO);
+        glDrawElementsInstanced(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0, modelTransforms.size());
+        glBindVertexArray(0);
+    }
+    else {
+
+        size_t s = modelTransforms.size();
+
+        std::vector<glm::mat4> temps = std::vector<glm::mat4>();
+
+        size_t i = 0;
+
+        while (s != 0) {
+
+            temps.clear();
+
+            size_t n = s >= ONE_DRAW_TRANSFORMS ? ONE_DRAW_TRANSFORMS : s;
+
+            std::copy(modelTransforms.begin() + i * ONE_DRAW_TRANSFORMS, modelTransforms.begin() + i * ONE_DRAW_TRANSFORMS + n, std::back_inserter(temps));
+
+            glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, n * sizeof(glm::mat4), temps.data());
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            glBindVertexArray(VAO);
+            glDrawElementsInstanced(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0, n);
+            glBindVertexArray(0);
+
+            s -= n;
+            ++i;
+        }
+    }
 }
 
 void init_imgui()
@@ -453,6 +494,8 @@ void imgui_render()
 
     ImGui::Text("Change this Tetrahedron as you wish.");            // Display some text
 
+    ImGui::Text("Number of Tetrahedrons: %d", modelTransforms.size());
+
     bool dirtyView = false;
     float rx = rotationX;
     ImGui::SliderFloat("Rotation X", &rx, 0.f, 360.f);       // Slider for rotation in X axes from 0 to 360
@@ -486,7 +529,7 @@ void imgui_render()
     }
 
     int rl = rLevel;
-    ImGui::SliderInt("Recursion", &rl, 0, 15);                  // Slider for recursion level from 0 to 10
+    ImGui::SliderInt("Recursion", &rl, 0, 13);                  // Slider for recursion level from 0 to 13
 
     if (rl != rLevel) {
         glBindVertexArray(VAO);
