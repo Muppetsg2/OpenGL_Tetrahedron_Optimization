@@ -9,6 +9,7 @@ public:
     GLuint ID;
 
     Shader();
+    ~Shader();
 
     // konstruktor czyta plik shadera z dysku i tworzy go  
     Shader(const GLchar* vertexPath, const GLchar* fragmentPath);

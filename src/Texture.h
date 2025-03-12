@@ -11,6 +11,7 @@ public:
     int nrChannels = 0;
 
     Texture();
+    ~Texture();
 
     // konstruktor czyta plik tekstury  
     Texture(const GLchar* imgPath, GLint internalFormat, GLenum format, GLint sWrapMode, GLint tWrapMode, GLint minFilterMode, GLint magFilterMode);

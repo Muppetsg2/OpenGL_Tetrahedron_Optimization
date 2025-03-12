@@ -5,6 +5,11 @@ Shader::Shader() {
     initialized = false;
 }
 
+Shader::~Shader()
+{
+    glDeleteProgram(ID);
+}
+
 Shader::Shader(const GLchar* vertexPath, const GLchar* fragmentPath)
 {
     // 1. pobierz kod Ÿród³owy Vertex/Fragment Shadera z filePath  

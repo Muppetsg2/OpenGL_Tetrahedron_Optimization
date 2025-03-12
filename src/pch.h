@@ -25,6 +25,7 @@
 #include <stb_image.h>
 
 // STD
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>

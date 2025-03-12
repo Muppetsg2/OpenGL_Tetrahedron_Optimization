@@ -8,6 +8,11 @@ Texture::Texture() {
     initialized = false;
 }
 
+Texture::~Texture()
+{
+    glDeleteTextures(1, &(this->ID));
+}
+
 Texture::Texture(const GLchar* imgPath, GLint internalFormat, GLenum format, GLint sWrapMode, GLint tWrapMode, GLint minFilterMode, GLint magFilterMode)
 {
     this->ID = 0;

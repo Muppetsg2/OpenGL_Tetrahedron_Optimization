@@ -7,6 +7,8 @@ const char* WINDOW_NAME = "Tetrahedron";
 constexpr int32_t WINDOW_WIDTH = 1280;
 constexpr int32_t WINDOW_HEIGHT = 720;
 
+std::string exeDirPath;
+
 // Change these to lower GL version like 4.5 if GL 4.6 can't be initialized on your machine
 const     char* glsl_version = "#version 450";
 constexpr int32_t GL_VERSION_MAJOR = 4;
@@ -18,40 +20,23 @@ constexpr size_t ONE_DRAW_TRANSFORMS = GL_MAX_ELEMENT_INDEX * 2;
 
 #pragma region TetrahedronDeclaration
 
-std::vector<glm::mat4> modelTransforms = std::vector<glm::mat4>();
-
-struct Vertex {
-    glm::vec3 Position;
-    glm::vec2 TexCoords;
+// Instance data
+struct InstanceData {
+    glm::vec3 pos;  // Position
+    float scale;    // Scale factor
 };
 
-Vertex vertices[] {
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.5f, 1.0f) },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 0.0f) },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 0.0f) },
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.0f, 1.0f) },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(1.0f, 1.0f) },
-    { .Position = glm::vec3(0.0f, 0.333333f, 0.0f),         .TexCoords = glm::vec2(0.5f, 0.0f) },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 1.0f) },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 1.0f) },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(0.0f, 1.0f) },
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(1.0f, 1.0f) }
-};
+//std::vector<glm::mat4> modelTransforms = std::vector<glm::mat4>();
+std::vector<InstanceData> instances = {};
 
-GLuint indices[] = {
-    0, 2, 1,
-    3, 4, 5,
-    6, 7, 5,
-    8, 9, 5
-};
-
-GLuint VBO, VAO, EBO, instanceVBO;
-Shader ourShader;
-Texture texture;
+GLuint VAO, VBO, instanceVBO;
+Shader* ourShader;
+Texture* texture;
 glm::vec3 color = glm::vec3(1.f, 1.f, 1.f);
 float rotationY = 0.f;
 float rotationX = 0.f;
 int rLevel = 1;
+int maxRecursion = 13;
 float cameraRadius = 3.f;
 
 #pragma endregion
@@ -119,8 +104,10 @@ void cleanup();
 
 #pragma endregion
 
-int main(int, char**)
+int main(int argc, char** argv)
 {
+    exeDirPath = std::filesystem::absolute(argv[0]).parent_path().string();
+
     if (!init())
     {
         spdlog::error("Failed to initialize project!");
@@ -161,7 +148,7 @@ int main(int, char**)
 
     cleanup();
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 bool init()
@@ -220,52 +207,42 @@ bool init()
 
 void setupObjects()
 {
-    texture = Texture("./res/textures/stone.jpg", GL_RGB, GL_RGB, GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR);
-    ourShader = Shader("./res/shaders/instance.vert", "./res/shaders/instance.frag");
+    texture = new Texture(std::string(exeDirPath).append("/res/textures/stone.jpg").c_str(), GL_RGB, GL_RGB, GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR);
+    ourShader = new Shader(std::string(exeDirPath).append("/res/shaders/basic.vert").c_str(), std::string(exeDirPath).append("/res/shaders/basic.geom").c_str(), std::string(exeDirPath).append("/res/shaders/basic.frag").c_str());
 
-    texture.use(0);
-    ourShader.use();
-    ourShader.setInt("tex", 0);
-    ourShader.setVec3("c", color);
-    ourShader.setMatrix4x4("projection", glm::perspective(glm::radians(45.0f), WINDOW_HEIGHT != 0 ? (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT : 0.f, 0.1f, 1000.0f));
-    ourShader.setMatrix4x4("view", glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.0f, -cameraRadius)));
+    // Define a single point for instancing
+    glm::vec3 point = { 0.0f, 0.0f, 0.0f };
+
+    texture->use(0);
+    ourShader->use();
+    ourShader->setInt("tex", 0);
+    ourShader->setVec3("c", color);
+    ourShader->setMatrix4x4("projection", glm::perspective(glm::radians(45.0f), WINDOW_HEIGHT != 0 ? (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT : 0.f, 0.1f, 1000.0f));
+    ourShader->setMatrix4x4("view", glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.0f, -cameraRadius)));
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
     glGenBuffers(1, &instanceVBO);
 
     glBindVertexArray(VAO);
 
+    // Vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(point), &point, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
-    glEnableVertexAttribArray(1);
-
+    // Instance buffer
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, UINT_MAX / 2, modelTransforms.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, (unsigned int)powf(4.0f, (float)maxRecursion) * sizeof(InstanceData), instances.data(), GL_STATIC_DRAW);
 
-    // Transform Matrix
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)0);
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(1 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(2 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(4);
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(3 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, scale));
 
+    glVertexAttribDivisor(1, 1);
     glVertexAttribDivisor(2, 1);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
-    glVertexAttribDivisor(5, 1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -279,26 +256,27 @@ void setupObjects()
 void tetrahedron(int level, int levelBefore)
 {
     if (level == 0) {
-        modelTransforms.clear();
+        instances.clear();
         return;
     }
     else if (level == 1) {
-        modelTransforms.clear();
-        modelTransforms.push_back(glm::mat4(1.f));
+        instances.clear();
+        instances.push_back({ { 0.f, 0.f, 0.f}, 1.f });
     }
     else {
         int toAdd = level - levelBefore;
-        std::vector<glm::mat4> temps = std::vector<glm::mat4>();
-        temps.swap(modelTransforms);
+        std::vector<InstanceData> temps;
+        temps.swap(instances);
         if (toAdd > 0) {
             for (int i = toAdd; i > 0; --i)
             {
                 size_t size = temps.size();
                 for (int j = 0; j < size; ++j) {
-                    temps.push_back(glm::translate(glm::scale(temps[j], glm::vec3(.5f)), glm::vec3(-.5f, -0.333333f, -0.288675f)));
-                    temps.push_back(glm::translate(glm::scale(temps[j], glm::vec3(.5f)), glm::vec3(0.f, -0.333333f, 0.57735f)));
-                    temps.push_back(glm::translate(glm::scale(temps[j], glm::vec3(.5f)), glm::vec3(.5f, -0.333333f, -0.288675f)));
-                    temps.push_back(glm::translate(glm::scale(temps[j], glm::vec3(.5f)), glm::vec3(0.f, 0.333333f, 0.f)));
+                    float scale = temps[j].scale * 0.5f;
+                    temps.push_back({ temps[j].pos + glm::vec3(-.5f, -0.333333f, -0.288675f) * scale, scale });
+                    temps.push_back({ temps[j].pos + glm::vec3(0.f, -0.333333f, 0.57735f) * scale, scale });
+                    temps.push_back({ temps[j].pos + glm::vec3(.5f, -0.333333f, -0.288675f) * scale, scale });
+                    temps.push_back({ temps[j].pos + glm::vec3(0.f, 0.333333f, 0.f) * scale, scale });
                 }
 
                 temps.erase(temps.begin(), temps.begin() + size);
@@ -309,50 +287,21 @@ void tetrahedron(int level, int levelBefore)
             {
                 size_t size = temps.size();
                 for (int j = 0; j < size; j += 4) {
-                    temps.push_back(glm::scale(glm::translate(temps[j], glm::vec3(.5f, 0.333333f, 0.288675f)), glm::vec3(2.f)));
+                    temps.push_back({ temps[j].pos + glm::vec3(.5f, 0.333333f, 0.288675f) * temps[j].scale, temps[j].scale * 2.f });
                 }
 
                 temps.erase(temps.begin(), temps.begin() + size);
             }
         }
         else {
-            modelTransforms.swap(temps);
+            instances.swap(temps);
             temps.clear();
             return;
         }
 
-        modelTransforms.swap(temps);
+        instances.swap(temps);
         temps.clear();
     }
-
-    /*
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    */
-
-    /* RECURSION
-    if (level == 0)
-    {
-        return;
-    }
-
-    if (level == 1)
-    {
-        sh.setMatrix4x4("model", model);
-        sh.use();
-
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-    }
-    else
-    {
-        glm::mat4 trans = glm::scale(model, glm::vec3(.5f));
-        tetrahedron(sh, glm::translate(trans, glm::vec3(-.5f, -0.333333f, -0.288675f)), level - 1);     // Left, Down, Backward
-        tetrahedron(sh, glm::translate(trans, glm::vec3(0.f, -0.333333f, 0.57735f)), level - 1);        // Center, Down, Forward
-        tetrahedron(sh, glm::translate(trans, glm::vec3(.5f, -0.333333f, -0.288675f)), level - 1);      // Right, Down, Backward
-        tetrahedron(sh, glm::translate(trans, glm::vec3(0.f, 0.333333f, 0.f)), level - 1);              // Center, Up, Backward
-    }
-    */
 }
 
 void input()
@@ -363,26 +312,20 @@ void input()
 
 void update()
 {
-    /*
-    glm::mat4 model = glm::mat4(1.f);
-    model = glm::rotate(model, glm::radians(rotationY), glm::vec3(0.f, 1.f, 0.f));
-    model = glm::rotate(model, glm::radians(rotationX), glm::vec3(1.f, 0.f, 0.f));
-    */
-
-    if (modelTransforms.size() <= ONE_DRAW_TRANSFORMS) {
+    if (instances.size() <= ONE_DRAW_TRANSFORMS) {
         glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, modelTransforms.size() * sizeof(glm::mat4), modelTransforms.data());
+        glBufferSubData(GL_ARRAY_BUFFER, 0, instances.size() * sizeof(InstanceData), instances.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         
         glBindVertexArray(VAO);
-        glDrawElementsInstanced(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0, modelTransforms.size());
+        glDrawArraysInstanced(GL_POINTS, 0, 1, instances.size());
         glBindVertexArray(0);
     }
     else {
 
-        size_t s = modelTransforms.size();
+        size_t s = instances.size();
 
-        std::vector<glm::mat4> temps = std::vector<glm::mat4>();
+        std::vector<InstanceData> temps;
 
         size_t i = 0;
 
@@ -392,14 +335,14 @@ void update()
 
             size_t n = s >= ONE_DRAW_TRANSFORMS ? ONE_DRAW_TRANSFORMS : s;
 
-            std::copy(modelTransforms.begin() + i * ONE_DRAW_TRANSFORMS, modelTransforms.begin() + i * ONE_DRAW_TRANSFORMS + n, std::back_inserter(temps));
+            std::copy(instances.begin() + i * ONE_DRAW_TRANSFORMS, instances.begin() + i * ONE_DRAW_TRANSFORMS + n, std::back_inserter(temps));
 
             glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, n * sizeof(glm::mat4), temps.data());
+            glBufferSubData(GL_ARRAY_BUFFER, 0, n * sizeof(InstanceData), temps.data());
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
             glBindVertexArray(VAO);
-            glDrawElementsInstanced(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0, n);
+            glDrawArraysInstanced(GL_POINTS, 0, 1, n);
             glBindVertexArray(0);
 
             s -= n;
@@ -437,7 +380,7 @@ void imgui_render()
 
     ImGui::Text("Change this Tetrahedron as you wish.");            // Display some text
 
-    ImGui::Text("Number of Tetrahedrons: %d", modelTransforms.size());
+    ImGui::Text("Number of Tetrahedrons: %d", instances.size());
 
     bool dirtyView = false;
     float rx = rotationX;
@@ -457,7 +400,8 @@ void imgui_render()
     }
 
     if (dirtyView) {
-        ourShader.setMatrix4x4("view",
+        ourShader->use();
+        ourShader->setMatrix4x4("view",
             glm::rotate(
                 glm::rotate(
                     glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -cameraRadius)),
@@ -469,7 +413,7 @@ void imgui_render()
     }
 
     int rl = rLevel;
-    ImGui::SliderInt("Recursion", &rl, 0, 13);                  // Slider for recursion level from 0 to 13
+    ImGui::SliderInt("Recursion", &rl, 0, maxRecursion);                  // Slider for recursion level from 0 to 13
 
     if (rl != rLevel) {
         glBindVertexArray(VAO);
@@ -483,8 +427,8 @@ void imgui_render()
 
     if (c != color) {
         color = c;
-        ourShader.use();
-        ourShader.setVec3("c", color);
+        ourShader->use();
+        ourShader->setVec3("c", color);
     }
 
     glm::vec4 cc = clear_color;
@@ -515,6 +459,15 @@ void end_frame()
 
 void cleanup()
 {
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &instanceVBO);
+
+    delete ourShader;
+    delete texture;
+
+    instances.clear();
+
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
