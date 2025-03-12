@@ -1,5 +1,4 @@
-#include "Texture.h"
-#include "stb_image.h"
+#include <Texture.h>
 
 Texture::Texture() {
     ID = 0;

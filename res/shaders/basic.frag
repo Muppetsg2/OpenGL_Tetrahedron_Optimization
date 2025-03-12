@@ -1,7 +1,11 @@
-#version 430 core  
-out vec4 color;
+#version 450 core
+in vec2 TexCoords;
 
-void main()  
-{  
-    color = vec4(1.0f, 0.5f, 0.2f, 1.0f);  
+uniform vec3 c;
+uniform sampler2D tex;
+
+out vec4 Color;
+
+void main() {
+    Color = texture(tex, TexCoords) * vec4(c, 1.0);
 }

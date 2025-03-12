@@ -1,16 +1,5 @@
 #pragma once
 
-#include <glad/glad.h>// do³¹cz glad, by móc korzystaæ w wszystkich wymaganych przez OpenGL funkcji</glad>
-// OpenGL Mathematics
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-
 class Shader
 {
 private:
@@ -23,6 +12,7 @@ public:
 
     // konstruktor czyta plik shadera z dysku i tworzy go  
     Shader(const GLchar* vertexPath, const GLchar* fragmentPath);
+    Shader(const GLchar* vertexPath, const GLchar* geometryPath, const GLchar* fragmentPath);
     // aktywuj shader  
     void use() const;
     // funkcje operuj¹ce na uniformach  

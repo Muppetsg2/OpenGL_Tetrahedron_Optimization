@@ -1,4 +1,4 @@
-#include "Shader.h"
+#include <Shader.h>
 
 Shader::Shader() {
     ID = 0;
@@ -83,6 +83,110 @@ Shader::Shader(const GLchar* vertexPath, const GLchar* fragmentPath)
     // usuñ obiekty shader'ów, które s¹ ju¿ powi¹zane  
     // z Program Object - nie bêd¹ nam ju¿ potrzebne  
     glDeleteShader(vertex);
+    glDeleteShader(fragment);
+    initialized = true;
+}
+
+Shader::Shader(const GLchar* vertexPath, const GLchar* geometryPath, const GLchar* fragmentPath)
+{
+    // 1. pobierz kod Ÿród³owy Vertex/Fragment Shadera z filePath  
+    std::string vertexCode;
+    std::string geometryCode;
+    std::string fragmentCode;
+    std::ifstream vShaderFile;
+    std::ifstream gShaderFile;
+    std::ifstream fShaderFile;
+    // zapewnij by obiekt ifstream móg³ rzucaæ wyj¹tkami  
+    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    gShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    try
+    {
+        // otwórz pliki  
+        vShaderFile.open(vertexPath);
+        gShaderFile.open(geometryPath);
+        fShaderFile.open(fragmentPath);
+        std::stringstream vShaderStream, gShaderStream, fShaderStream;
+        // zapisz zawartoœæ bufora pliku do strumieni  
+        vShaderStream << vShaderFile.rdbuf();
+        gShaderStream << gShaderFile.rdbuf();
+        fShaderStream << fShaderFile.rdbuf();
+        // zamknij uchtywy do plików  
+        vShaderFile.close();
+        gShaderFile.close();
+        fShaderFile.close();
+        // zamieñ strumieñ w ³añcuch znaków  
+        vertexCode = vShaderStream.str();
+        geometryCode = gShaderStream.str();
+        fragmentCode = fShaderStream.str();
+    }
+    catch (std::ifstream::failure e)
+    {
+        std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+    }
+    const char* vShaderCode = vertexCode.c_str();
+    const char* gShaderCode = geometryCode.c_str();
+    const char* fShaderCode = fragmentCode.c_str();
+
+    // 2. skompiluj shadery  
+    unsigned int vertex, geometry, fragment;
+    int success;
+    char infoLog[512];
+
+    // Vertex Shader  
+    vertex = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertex, 1, &vShaderCode, NULL);
+    glCompileShader(vertex);
+    // wypisz b³êdy kompilacji, jeœli s¹ jakieœ  
+    glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    };
+
+    // Geometry Shader  
+    geometry = glCreateShader(GL_GEOMETRY_SHADER);
+    glShaderSource(geometry, 1, &gShaderCode, NULL);
+    glCompileShader(geometry);
+    // wypisz b³êdy kompilacji, jeœli s¹ jakieœ  
+    glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(geometry, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::GEOMETRY::COMPILATION_FAILED\n" << infoLog << std::endl;
+    };
+
+    // Fragment Shader  
+    fragment = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragment, 1, &fShaderCode, NULL);
+    glCompileShader(fragment);
+    // wypisz b³êdy kompilacji, jeœli s¹ jakieœ  
+    glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    };
+
+    // Program Object  
+    ID = glCreateProgram();
+    glAttachShader(ID, vertex);
+    glAttachShader(ID, geometry);
+    glAttachShader(ID, fragment);
+    glLinkProgram(ID);
+    // wypisz b³êdy linkowania, jeœli s¹ jakieœ
+    glGetProgramiv(ID, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(ID, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+
+    // usuñ obiekty shader'ów, które s¹ ju¿ powi¹zane  
+    // z Program Object - nie bêd¹ nam ju¿ potrzebne  
+    glDeleteShader(vertex);
+    glDeleteShader(geometry);
     glDeleteShader(fragment);
     initialized = true;
 }

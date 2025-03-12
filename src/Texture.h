@@ -1,7 +1,4 @@
 #pragma once
-#include <glad/glad.h>// do³¹cz glad, by móc korzystaæ w wszystkich wymaganych przez OpenGL funkcji</glad>
-
-#include <iostream>
 
 class Texture {
 private:

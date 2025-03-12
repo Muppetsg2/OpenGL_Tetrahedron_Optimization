@@ -17,11 +17,10 @@ add_library(stb_image STATIC ${STB_IMAGE_DIR}/stb_image.cpp)
 target_include_directories(stb_image PRIVATE ${STB_IMAGE_DIR})
 
 # other
-# CPMAddPackage("gh:assimp/assimp@5.3.1")
 CPMAddPackage("gh:glfw/glfw#3.4")
 CPMAddPackage("gh:g-truc/glm#1.0.1")
-CPMAddPackage("gh:ocornut/imgui@1.90.4")
-CPMAddPackage("gh:gabime/spdlog@1.13.0")
+CPMAddPackage("gh:ocornut/imgui@1.91.8")
+CPMAddPackage("gh:gabime/spdlog@1.15.1")
 
 set(imgui_SOURCE_DIR ${imgui_SOURCE_DIR} CACHE INTERNAL "")
 add_library(imgui STATIC ${imgui_SOURCE_DIR}/imgui.cpp
@@ -31,11 +30,10 @@ add_library(imgui STATIC ${imgui_SOURCE_DIR}/imgui.cpp
 					     ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
 						 
 set_target_properties(glad
-                      stb_image 
-                      # assimp 
-                      glfw 
-                      glm 
-                      imgui 
+                      stb_image
+                      glfw
+                      glm
+                      imgui
                       spdlog PROPERTIES FOLDER "thirdparty")
 
 if (TARGET zlibstatic)

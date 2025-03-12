@@ -1,33 +1,9 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
-#include <glad/glad.h>  // Initialize with gladLoadGL()
-#include <GLFW/glfw3.h> // Include glfw3.h after our OpenGL definitions
-#include <spdlog/spdlog.h>
-
-// dear imgui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
-
-#include "imgui.h"
-#include "imgui_impl/imgui_impl_glfw.h"
-#include "imgui_impl/imgui_impl_opengl3.h"
-#define IMGUI_IMPL_OPENGL_LOADER_GLAD
-
-// OpenGL Mathematics
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <algorithm> // for copy() and assign()  
-#include <iterator> // for back_inserter  
-
 // Mine
 #include <Shader.h>
 #include <Texture.h>
 
 GLFWwindow* window = nullptr;
-const char* WINDOW_NAME = "Test";
+const char* WINDOW_NAME = "Tetrahedron";
 constexpr int32_t WINDOW_WIDTH = 1280;
 constexpr int32_t WINDOW_HEIGHT = 720;
 
@@ -47,31 +23,26 @@ std::vector<glm::mat4> modelTransforms = std::vector<glm::mat4>();
 struct Vertex {
     glm::vec3 Position;
     glm::vec2 TexCoords;
-    glm::vec3 Normal;
-    glm::vec3 Tangent;
-    glm::vec3 Bitangent;
 };
 
 Vertex vertices[] {
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.5f, 1.0f), .Normal = glm::vec3(0.0f, -1.0f, 0.0f),                 .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(0.0f, 0.0f, 1.0f)                    },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 0.0f), .Normal = glm::vec3(0.0f, -1.0f, 0.0f),                 .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(0.0f, 0.0f, 1.0f)                    },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 0.0f), .Normal = glm::vec3(0.0f, -1.0f, 0.0f),                 .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(0.0f, 0.0f, 1.0f)                    },
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.0f, 1.0f), .Normal = glm::vec3(0.344124f, 0.917663f, 0.19868f),    .Tangent = glm::vec3(0.5f, 0.0f, -0.866025f),   .Bitangent = glm::vec3(0.344124f, -0.917663f, 0.19868f)     },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(1.0f, 1.0f), .Normal = glm::vec3(0.344124f, 0.917663f, 0.19868f),    .Tangent = glm::vec3(0.5f, 0.0f, -0.866025f),   .Bitangent = glm::vec3(0.344124f, -0.917663f, 0.19868f)     },
-    { .Position = glm::vec3(0.0f, 0.333333f, 0.0f),         .TexCoords = glm::vec2(0.5f, 0.0f), .Normal = glm::vec3(0.344124f, 0.917663f, 0.19868f),    .Tangent = glm::vec3(0.5f, 0.0f, -0.866025f),   .Bitangent = glm::vec3(0.344124f, -0.917663f, 0.19868f)     },
-    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 1.0f), .Normal = glm::vec3(-0.0f, 0.917663f, -0.39736f),       .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(-0.0f, -0.917663f, -0.39736f)        },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 1.0f), .Normal = glm::vec3(-0.0f, 0.917663f, -0.39736f),       .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(-0.0f, -0.917663f, -0.39736f)        },
-    { .Position = glm::vec3(0.0f, 0.333333f, 0.0f),         .TexCoords = glm::vec2(0.5f, 0.0f), .Normal = glm::vec3(-0.0f, 0.917663f, -0.39736f),       .Tangent = glm::vec3(-1.0f, 0.0f, 0.0f),        .Bitangent = glm::vec3(-0.0f, -0.917663f, -0.39736f)        },
-    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(0.0f, 1.0f), .Normal = glm::vec3(-0.344124f, 0.917663f, 0.19868f),   .Tangent = glm::vec3(0.5f, 0.0f, 0.866025f),    .Bitangent = glm::vec3(-0.344124f, -0.917663f, 0.19868f)    },
-    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(1.0f, 1.0f), .Normal = glm::vec3(-0.344124f, 0.917663f, 0.19868f),   .Tangent = glm::vec3(0.5f, 0.0f, 0.866025f),    .Bitangent = glm::vec3(-0.344124f, -0.917663f, 0.19868f)    },
-    { .Position = glm::vec3(0.0f, 0.333333f, 0.0f),         .TexCoords = glm::vec2(0.5f, 0.0f), .Normal = glm::vec3(-0.344124f, 0.917663f, 0.19868f),   .Tangent = glm::vec3(0.5f, 0.0f, 0.866025f),    .Bitangent = glm::vec3(-0.344124f, -0.917663f, 0.19868f)    }
+    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.5f, 1.0f) },
+    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 0.0f) },
+    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 0.0f) },
+    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(0.0f, 1.0f) },
+    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(1.0f, 1.0f) },
+    { .Position = glm::vec3(0.0f, 0.333333f, 0.0f),         .TexCoords = glm::vec2(0.5f, 0.0f) },
+    { .Position = glm::vec3(0.5f, -0.333333f, -0.288675f),  .TexCoords = glm::vec2(0.0f, 1.0f) },
+    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(1.0f, 1.0f) },
+    { .Position = glm::vec3(-0.5f, -0.333333f, -0.288675f), .TexCoords = glm::vec2(0.0f, 1.0f) },
+    { .Position = glm::vec3(0.0f, -0.333333f, 0.57735f),    .TexCoords = glm::vec2(1.0f, 1.0f) }
 };
 
 GLuint indices[] = {
     0, 2, 1,
     3, 4, 5,
-    6, 7, 8,
-    9, 10, 11
+    6, 7, 5,
+    8, 9, 5
 };
 
 GLuint VBO, VAO, EBO, instanceVBO;
@@ -94,7 +65,7 @@ static void glfw_error_callback(int error, const char* description)
 
 static void GLAPIENTRY ErrorMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
-    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) return; // Chce ignorowa� notyfikacje
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) return;
 
     std::string severityS = "";
     if (severity == GL_DEBUG_SEVERITY_HIGH) severityS = "HIGHT";
@@ -162,8 +133,8 @@ int main(int, char**)
 
     setupObjects();
 
-    GLfloat deltaTime = 0.0f; // Czas pomi�dzy obecn� i poprzedni� klatk�  
-    GLfloat lastFrame = 0.0f; // Czas ostatniej ramki
+    GLfloat deltaTime = 0.0f;
+    GLfloat lastFrame = 0.0f;
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -278,32 +249,23 @@ void setupObjects()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
     glEnableVertexAttribArray(1);
 
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
-    glEnableVertexAttribArray(2);
-
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
-    glEnableVertexAttribArray(3);
-
-    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
-    glEnableVertexAttribArray(4);
-
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, UINT_MAX / 2, modelTransforms.data(), GL_STATIC_DRAW);
 
     // Transform Matrix
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)0);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(1 * sizeof(glm::vec4)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(2 * sizeof(glm::vec4)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(3 * sizeof(glm::vec4)));
     glEnableVertexAttribArray(5);
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(1 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(6);
-    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(2 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(7);
-    glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(glm::vec4), (void*)(3 * sizeof(glm::vec4)));
-    glEnableVertexAttribArray(8);
 
+    glVertexAttribDivisor(2, 1);
+    glVertexAttribDivisor(3, 1);
+    glVertexAttribDivisor(4, 1);
     glVertexAttribDivisor(5, 1);
-    glVertexAttribDivisor(6, 1);
-    glVertexAttribDivisor(7, 1);
-    glVertexAttribDivisor(8, 1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -451,31 +413,12 @@ void init_imgui()
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Setup style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'misc/fonts/README.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
 }
 
 void imgui_begin()
@@ -505,7 +448,6 @@ void imgui_render()
         dirtyView = true;
     }
 
-    /*
     float ry = rotationY;
     ImGui::SliderFloat("Rotation Y", &ry, 0.f, 360.f);       // Slider for rotation in Y axes from 0 to 360
 
@@ -513,19 +455,17 @@ void imgui_render()
         rotationY = ry;
         dirtyView = true;
     }
-    */
 
     if (dirtyView) {
-        // Only X Rotation
-        ourShader.setMatrix4x4("view", glm::rotate(
-                                            glm::translate(
-                                                glm::mat4(1.f), 
-                                                glm::vec3(-sinf(glm::radians(rotationX)) * cameraRadius, 0.0f, -cosf(glm::radians(rotationX)) * cameraRadius)
-                                            ),
-                                            0.f,//glm::radians(360.f - rotationX),
-                                            glm::vec3(0.f, 1.f, 0.f)
-                                        )
-                                );
+        ourShader.setMatrix4x4("view",
+            glm::rotate(
+                glm::rotate(
+                    glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -cameraRadius)),
+                    glm::radians(-rotationX), glm::vec3(1.f, 0.f, 0.f)
+                ),
+                glm::radians(-rotationY), glm::vec3(0.f, 1.f, 0.f)
+            )
+        );
     }
 
     int rl = rLevel;
@@ -568,11 +508,6 @@ void imgui_end()
 
 void end_frame()
 {
-    // Poll and handle events (inputs, window resize, etc.)
-    // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-    // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-    // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-    // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
     glfwPollEvents();
     glfwMakeContextCurrent(window);
     glfwSwapBuffers(window);
