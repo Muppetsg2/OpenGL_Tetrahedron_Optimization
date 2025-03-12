@@ -16,35 +16,6 @@ void createTetrahedron() {
     float r_2 = sqrt_3 / 6.0;
     float half_1 = 0.5;
 
-    /* IF Triangles not triangle_strip
-    vec3 offsets[4] = {
-        vec3(0.0, -h_2, r),         // Front
-        vec3(half_1, -h_2, -r_2),   // Right
-        vec3(-half_1, -h_2, -r_2),  // Left
-        vec3(0.0, h_2, 0.0)         // Top
-    };
-
-    vec2 texCoords[6] = {
-        vec2(0.5, 1.0), vec2(0.0, 0.0), 
-        vec2(1.0, 0.0), vec2(0.0, 1.0), 
-        vec2(1.0, 1.0), vec2(0.5, 0.0)
-    };
-
-    int off_indices[12] = {
-        0, 2, 1,
-        0, 1, 3,
-        1, 2, 3,
-        2, 0, 3
-    };
-
-    int tex_indices[12] = {
-        0, 2, 1,
-        3, 4, 5,
-        3, 4, 5,
-        3, 4, 5
-    };
-    */
-
     vec3 offsets[4] = {
         vec3(0.0, -h_2, r),         // Front
         vec3(half_1, -h_2, -r_2),   // Right
