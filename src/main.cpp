@@ -24,7 +24,7 @@ constexpr int32_t GL_VERSION_MINOR = 5;
 
 glm::vec4 clear_color = glm::vec4(.55f, .55f, .55f, 1.f);
 
-constexpr size_t ONE_DRAW_TRANSFORMS = UINT16_MAX;
+size_t ONE_DRAW_TRANSFORMS = UINT16_MAX;
 
 #pragma region TetrahedronDeclaration
 
@@ -44,7 +44,7 @@ glm::vec3 color = glm::vec3(1.f, 1.f, 1.f);
 float rotationY = 0.f;
 float rotationX = 0.f;
 int rLevel = 1;
-int maxRecursion = 13;
+int maxRecursion = 13; // For unsigned long long this can be from 0 to 31 but we dont use this much
 float cameraRadius = 3.f;
 
 #pragma endregion
@@ -453,9 +453,9 @@ void imgui_render()
 {
     static int counter = 0;
 
-    ImGui::Begin("Sierpinski Tetrahedron");                         // Create a window called "Sierpinski Tetrahedron" and append into it.
+    ImGui::Begin("Sierpinski Tetrahedron");                  // Create a window called "Sierpinski Tetrahedron" and append into it.
 
-    ImGui::Text("Change this Tetrahedron as you wish.");            // Display some text
+    ImGui::Text("Change this Tetrahedron as you wish.");     // Display some text
 
     ImGui::Text("Number of Tetrahedrons: %d", instances.size());
 
@@ -490,7 +490,7 @@ void imgui_render()
     }
 
     int rl = rLevel;
-    ImGui::SliderInt("Recursion", &rl, 0, maxRecursion);                  // Slider for recursion level from 0 to 13
+    ImGui::SliderInt("Recursion", &rl, 0, maxRecursion);  // Slider for recursion level from 0 to MAX_RECURSION
 
     if (rl != rLevel) {
         glBindVertexArray(VAO);
@@ -500,7 +500,7 @@ void imgui_render()
     }
 
     glm::vec3 c = color;
-    ImGui::ColorEdit3("Shape Color", (float*)&c);               // Edit 3 floats representing a shape color
+    ImGui::ColorEdit3("Shape Color", (float*)&c);       // Edit 3 floats representing a shape color
 
     if (c != color) {
         color = c;
