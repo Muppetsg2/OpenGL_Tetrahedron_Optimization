@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
-project(OpenGL_Tetrahedron_Optimization VERSION 2.0)
+project(OpenGL_Tetrahedron_Optimization VERSION 2.5)
 
 IF (WIN32)
   message(NOTICE "\n")

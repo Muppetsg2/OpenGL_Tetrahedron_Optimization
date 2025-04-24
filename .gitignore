@@ -9,4 +9,5 @@ compile_commands.json
 CTestTestfile.cmake
 
 [Bb]uild/
-**/\.vs
+*\.vs/
+*out/

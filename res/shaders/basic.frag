@@ -7,5 +7,6 @@ uniform sampler2D tex;
 out vec4 Color;
 
 void main() {
-    Color = texture(tex, TexCoords) * vec4(c, 1.0);
+    float gamma = 2.2;
+    Color = vec4(pow(texture(tex, TexCoords).rgb * c, vec3(1.0/gamma)), 1.0);
 }

@@ -19,8 +19,9 @@ target_include_directories(stb_image PRIVATE ${STB_IMAGE_DIR})
 # other
 CPMAddPackage("gh:glfw/glfw#3.4")
 CPMAddPackage("gh:g-truc/glm#1.0.1")
-CPMAddPackage("gh:ocornut/imgui@1.91.8")
-CPMAddPackage("gh:gabime/spdlog@1.15.1")
+CPMAddPackage("gh:freetype/freetype#VER-2-13-3")
+CPMAddPackage("gh:ocornut/imgui@1.91.9b-docking")
+CPMAddPackage("gh:gabime/spdlog@1.15.2")
 
 set(imgui_SOURCE_DIR ${imgui_SOURCE_DIR} CACHE INTERNAL "")
 add_library(imgui STATIC ${imgui_SOURCE_DIR}/imgui.cpp
@@ -28,11 +29,15 @@ add_library(imgui STATIC ${imgui_SOURCE_DIR}/imgui.cpp
 					     ${imgui_SOURCE_DIR}/imgui_draw.cpp
 						 ${imgui_SOURCE_DIR}/imgui_tables.cpp
 					     ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
+
+set(imgui_FREETYPE_SOURCE ${imgui_SOURCE_DIR}/misc/freetype/imgui_freetype.cpp CACHE INTERNAL "")
+set(imgui_BACKEND_SOURCE ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp CACHE INTERNAL "")
 						 
 set_target_properties(glad
                       stb_image
                       glfw
                       glm
+                      freetype
                       imgui
                       spdlog PROPERTIES FOLDER "thirdparty")
 

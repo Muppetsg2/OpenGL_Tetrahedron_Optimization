@@ -1,6 +1,14 @@
+// Tetrahedron Optimization v2.5
+// Marceli Antosik (Muppetsg2)
+
+extern "C" {
+    _declspec(dllexport) unsigned long NvOptimusEnablement = 1;
+    _declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
 // Mine
-#include <Shader.h>
-#include <Texture.h>
+#include <Shader.hpp>
+#include <Texture.hpp>
 
 GLFWwindow* window = nullptr;
 const char* WINDOW_NAME = "Tetrahedron";
@@ -16,7 +24,7 @@ constexpr int32_t GL_VERSION_MINOR = 5;
 
 glm::vec4 clear_color = glm::vec4(.55f, .55f, .55f, 1.f);
 
-constexpr size_t ONE_DRAW_TRANSFORMS = GL_MAX_ELEMENT_INDEX * 2;
+constexpr size_t ONE_DRAW_TRANSFORMS = UINT16_MAX;
 
 #pragma region TetrahedronDeclaration
 
@@ -26,8 +34,8 @@ struct InstanceData {
     float scale;    // Scale factor
 };
 
-//std::vector<glm::mat4> modelTransforms = std::vector<glm::mat4>();
 std::vector<InstanceData> instances = {};
+std::vector<GLsync> fences = {};
 
 GLuint VAO, VBO, instanceVBO;
 Shader* ourShader;
@@ -41,52 +49,13 @@ float cameraRadius = 3.f;
 
 #pragma endregion
 
-#pragma region OpenGLCallbacks
-
-static void glfw_error_callback(int error, const char* description)
-{
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
-static void GLAPIENTRY ErrorMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
-{
-    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) return;
-
-    std::string severityS = "";
-    if (severity == GL_DEBUG_SEVERITY_HIGH) severityS = "HIGHT";
-    else if (severity == GL_DEBUG_SEVERITY_MEDIUM) severityS = "MEDIUM";
-    else if (severity == GL_DEBUG_SEVERITY_LOW) severityS = "LOW";
-    else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) severityS = "NOTIFICATION";
-
-    if (type == GL_DEBUG_TYPE_ERROR) {
-        spdlog::error("GL CALLBACK: type = ERROR, severity = {0}, message = {1}\n", severityS, message);
-    }
-    else if (type == GL_DEBUG_TYPE_MARKER) {
-        spdlog::info("GL CALLBACK: type = MARKER, severity = {0}, message = {1}\n", severityS, message);
-    }
-    else {
-        std::string typeS = "";
-        if (type == GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR) typeS = "DEPRACTED BEHAVIOUR";
-        else if (type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR) typeS = "UNDEFINED BEHAVIOUR";
-        else if (type == GL_DEBUG_TYPE_PORTABILITY) typeS = "PORTABILITY";
-        else if (type == GL_DEBUG_TYPE_PERFORMANCE) typeS = "PERFORMANCE";
-        else if (type == GL_DEBUG_TYPE_PUSH_GROUP) typeS = "PUSH GROUP";
-        else if (type == GL_DEBUG_TYPE_POP_GROUP) typeS = "POP GROUP";
-        else if (type == GL_DEBUG_TYPE_OTHER) typeS = "OTHER";
-        spdlog::warn("GL CALLBACK: type = {0}, severity = {1}, message = {2}\n", typeS, severityS, message);
-    }
-}
-
-static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
-#pragma endregion
-
 #pragma region FunctionsDeclaration
 
 bool init();
+std::string get_executable_path();
+void glfw_error_callback(int error, const char* description);
+void GLAPIENTRY error_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 void setupObjects();
 void tetrahedron(int level, int levelBefore = 0);
@@ -94,7 +63,7 @@ void tetrahedron(int level, int levelBefore = 0);
 void input();
 void update();
 
-void init_imgui();
+void imgui_init();
 void imgui_begin();
 void imgui_render();
 void imgui_end();
@@ -106,7 +75,7 @@ void cleanup();
 
 int main(int argc, char** argv)
 {
-    exeDirPath = std::filesystem::absolute(argv[0]).parent_path().string();
+    exeDirPath = get_executable_path();
 
     if (!init())
     {
@@ -115,7 +84,7 @@ int main(int argc, char** argv)
     }
     spdlog::info("Initialized project.");
 
-    init_imgui();
+    imgui_init();
     spdlog::info("Initialized ImGui.");
 
     setupObjects();
@@ -154,7 +123,9 @@ int main(int argc, char** argv)
 bool init()
 {
     // Setup window
+#if _DEBUG
     glfwSetErrorCallback(glfw_error_callback);
+#endif
     if (!glfwInit())
     {
         spdlog::error("Failed to initalize GLFW!");
@@ -189,9 +160,11 @@ bool init()
     }
     spdlog::info("Successfully initialized OpenGL loader!");
 
+#if _DEBUG
     // Debugging
     glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(ErrorMessageCallback, 0);
+    glDebugMessageCallback(error_message_callback, 0);
+#endif
 
     // Depth Test
     glEnable(GL_DEPTH_TEST);
@@ -205,9 +178,87 @@ bool init()
     return true;
 }
 
+std::string get_executable_path() {
+#if defined(_WIN32)
+    char buffer[MAX_PATH];
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    return std::filesystem::path(buffer).parent_path().string();
+
+#elif defined(__APPLE__)
+    char buffer[4096];
+    uint32_t size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) == 0) {
+        return std::filesystem::weakly_canonical(buffer).parent_path().string();
+    }
+    else {
+        printf("Error: _NSGetExecutablePath(): Buffer too small for executable path");
+        exit(EXIT_FAILURE);
+    }
+
+#elif defined(__linux__)
+    char buffer[4096];
+    ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer));
+    if (count != -1) {
+        return std::filesystem::weakly_canonical(std::string(buffer, count)).parent_path().string();
+    }
+    else {
+        printf("Error: readlink(): Cannot read /proc/self/exe");
+        exit(EXIT_FAILURE);
+    }
+
+#else
+#error "Unsupported platform"
+#endif
+}
+
+#pragma region OpenGLCallbacks
+
+#if _DEBUG
+void glfw_error_callback(int error, const char* description)
+{
+    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
+
+void GLAPIENTRY error_message_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+{
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) return;
+
+    std::string severityS = "";
+    if (severity == GL_DEBUG_SEVERITY_HIGH) severityS = "HIGHT";
+    else if (severity == GL_DEBUG_SEVERITY_MEDIUM) severityS = "MEDIUM";
+    else if (severity == GL_DEBUG_SEVERITY_LOW) severityS = "LOW";
+    else if (severity == GL_DEBUG_SEVERITY_NOTIFICATION) severityS = "NOTIFICATION";
+
+    if (type == GL_DEBUG_TYPE_ERROR) {
+        spdlog::error("GL CALLBACK: type = ERROR, severity = {0}, message = {1}\n", severityS, message);
+    }
+    else if (type == GL_DEBUG_TYPE_MARKER) {
+        spdlog::info("GL CALLBACK: type = MARKER, severity = {0}, message = {1}\n", severityS, message);
+    }
+    else {
+        std::string typeS = "";
+        if (type == GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR) typeS = "DEPRACTED BEHAVIOUR";
+        else if (type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR) typeS = "UNDEFINED BEHAVIOUR";
+        else if (type == GL_DEBUG_TYPE_PORTABILITY) typeS = "PORTABILITY";
+        else if (type == GL_DEBUG_TYPE_PERFORMANCE) typeS = "PERFORMANCE";
+        else if (type == GL_DEBUG_TYPE_PUSH_GROUP) typeS = "PUSH GROUP";
+        else if (type == GL_DEBUG_TYPE_POP_GROUP) typeS = "POP GROUP";
+        else if (type == GL_DEBUG_TYPE_OTHER) typeS = "OTHER";
+        spdlog::warn("GL CALLBACK: type = {0}, severity = {1}, message = {2}\n", typeS, severityS, message);
+    }
+}
+#endif
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+#pragma endregion
+
 void setupObjects()
 {
-    texture = new Texture(std::string(exeDirPath).append("/res/textures/stone.jpg").c_str(), GL_RGB, GL_RGB, GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR);
+    texture = new Texture(std::string(exeDirPath).append("/res/textures/stone.jpg").c_str(), GL_SRGB, GL_RGB, GL_MIRRORED_REPEAT, GL_MIRRORED_REPEAT, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR);
     ourShader = new Shader(std::string(exeDirPath).append("/res/shaders/basic.vert").c_str(), std::string(exeDirPath).append("/res/shaders/basic.geom").c_str(), std::string(exeDirPath).append("/res/shaders/basic.frag").c_str());
 
     // Define a single point for instancing
@@ -219,6 +270,10 @@ void setupObjects()
     ourShader->setVec3("c", color);
     ourShader->setMatrix4x4("projection", glm::perspective(glm::radians(45.0f), WINDOW_HEIGHT != 0 ? (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT : 0.f, 0.1f, 1000.0f));
     ourShader->setMatrix4x4("view", glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.0f, -cameraRadius)));
+    ourShader->setFloat("h_2", 1.0f / 3.0f);
+    float r = (float)M_SQRT3 / 3.0;
+    ourShader->setFloat("r", r);
+    ourShader->setFloat("r_2", r * 0.5f);
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -255,53 +310,58 @@ void setupObjects()
 
 void tetrahedron(int level, int levelBefore)
 {
-    if (level == 0) {
+    if (level <= 0) {
         instances.clear();
         return;
     }
-    else if (level == 1) {
+
+    if (level == 1) {
         instances.clear();
-        instances.push_back({ { 0.f, 0.f, 0.f}, 1.f });
+        instances.emplace_back(glm::vec3(0.f), 1.f);
+        return;
     }
-    else {
-        int toAdd = level - levelBefore;
-        std::vector<InstanceData> temps;
-        temps.swap(instances);
-        if (toAdd > 0) {
-            for (int i = toAdd; i > 0; --i)
-            {
-                size_t size = temps.size();
-                for (int j = 0; j < size; ++j) {
-                    float scale = temps[j].scale * 0.5f;
-                    temps.push_back({ temps[j].pos + glm::vec3(-.5f, -0.333333f, -0.288675f) * scale, scale });
-                    temps.push_back({ temps[j].pos + glm::vec3(0.f, -0.333333f, 0.57735f) * scale, scale });
-                    temps.push_back({ temps[j].pos + glm::vec3(.5f, -0.333333f, -0.288675f) * scale, scale });
-                    temps.push_back({ temps[j].pos + glm::vec3(0.f, 0.333333f, 0.f) * scale, scale });
+
+    int delta = level - levelBefore;
+    std::vector<InstanceData> temps;
+    temps.swap(instances);
+
+    static glm::vec3 offsets[] = {
+        {-0.5f, -0.333333f, -0.288675f},
+        { 0.0f, -0.333333f,  0.57735f},
+        { 0.5f, -0.333333f, -0.288675f},
+        { 0.0f,  0.333333f,  0.0f}
+    };
+
+    if (delta > 0) {
+        for (int i = 0; i < delta; ++i) {
+            std::vector<InstanceData> nextGen;
+            nextGen.reserve(temps.size() * 4); // reserve space ahead of time
+            for (const auto& instance : temps) {
+                float scale = instance.scale * 0.5f;
+                glm::vec3 pos = instance.pos;
+                for (const auto& offset : offsets) {
+                    nextGen.emplace_back(pos + offset * scale, scale);
                 }
-
-                temps.erase(temps.begin(), temps.begin() + size);
             }
+            temps.swap(nextGen); // nextGen becomes temps for next iteration
         }
-        else if (toAdd < 0) {
-            for (int i = -toAdd; i > 0; --i)
-            {
-                size_t size = temps.size();
-                for (int j = 0; j < size; j += 4) {
-                    temps.push_back({ temps[j].pos + glm::vec3(.5f, 0.333333f, 0.288675f) * temps[j].scale, temps[j].scale * 2.f });
-                }
-
-                temps.erase(temps.begin(), temps.begin() + size);
-            }
-        }
-        else {
-            instances.swap(temps);
-            temps.clear();
-            return;
-        }
-
-        instances.swap(temps);
-        temps.clear();
     }
+    else if (delta < 0) {
+        for (int i = 0; i < -delta; ++i) {
+            size_t size = temps.size();
+            std::vector<InstanceData> nextGen;
+            nextGen.reserve(size / 4); // estimate capacity
+            for (size_t j = 0; j < size; j += 4) {
+                float scale = temps[j].scale * 2.f;
+                glm::vec3 pos = temps[j].pos - offsets[0] * temps[j].scale;
+                nextGen.emplace_back(pos, scale);
+            }
+            temps.swap(nextGen);
+        }
+    }
+
+    instances.swap(temps);
+    temps.clear();
 }
 
 void input()
@@ -312,56 +372,73 @@ void input()
 
 void update()
 {
-    if (instances.size() <= ONE_DRAW_TRANSFORMS) {
-        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, instances.size() * sizeof(InstanceData), instances.data());
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
-        glBindVertexArray(VAO);
-        glDrawArraysInstanced(GL_POINTS, 0, 1, instances.size());
-        glBindVertexArray(0);
-    }
-    else {
+    size_t total = instances.size();
+    if (total == 0) return;
 
-        size_t s = instances.size();
+    glBindVertexArray(VAO);
 
-        std::vector<InstanceData> temps;
+    size_t offset = 0;
+    size_t frame = 0;
 
-        size_t i = 0;
+    while (offset < total) {
+        size_t count = std::min(ONE_DRAW_TRANSFORMS, total - offset);
 
-        while (s != 0) {
-
-            temps.clear();
-
-            size_t n = s >= ONE_DRAW_TRANSFORMS ? ONE_DRAW_TRANSFORMS : s;
-
-            std::copy(instances.begin() + i * ONE_DRAW_TRANSFORMS, instances.begin() + i * ONE_DRAW_TRANSFORMS + n, std::back_inserter(temps));
-
-            glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, n * sizeof(InstanceData), temps.data());
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-            glBindVertexArray(VAO);
-            glDrawArraysInstanced(GL_POINTS, 0, 1, n);
-            glBindVertexArray(0);
-
-            s -= n;
-            ++i;
+        // Wait for GPU
+        if (frame < fences.size() && fences[frame]) {
+            GLenum res = GL_WAIT_FAILED;
+            while (res == GL_TIMEOUT_EXPIRED || res == GL_WAIT_FAILED) {
+                res = glClientWaitSync(fences[frame], GL_SYNC_FLUSH_COMMANDS_BIT, 100000000); // 100ms
+            }
+            glDeleteSync(fences[frame]);
+            fences[frame] = nullptr;
         }
+
+        // Stream data without intermediate copy
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        void* ptr = glMapBufferRange(
+            GL_ARRAY_BUFFER,
+            0,
+            count * sizeof(InstanceData),
+            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT
+        );
+
+        if (ptr) {
+            memcpy(ptr, instances.data() + offset, count * sizeof(InstanceData));
+            glUnmapBuffer(GL_ARRAY_BUFFER);
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glDrawArraysInstanced(GL_POINTS, 0, 1, count);
+        if (frame >= fences.size()) fences.resize(frame + 1);
+        fences[frame] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+        offset += count;
+        frame++;
     }
+
+    glBindVertexArray(0);
 }
 
-void init_imgui()
+void imgui_init()
 {
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+
+    io.ConfigDockingTransparentPayload = true;  // Enable Docking Transparent
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Setup style
     ImGui::StyleColorsDark();
+
+    io.Fonts->AddFontDefault();
+    io.Fonts->Build();
 }
 
 void imgui_begin()
