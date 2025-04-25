@@ -1,4 +1,4 @@
-// Tetrahedron Optimization v2.5
+// Tetrahedron Optimization v3.0
 // Marceli Antosik (Muppetsg2)
 
 extern "C" {
@@ -37,14 +37,14 @@ struct InstanceData {
 std::vector<InstanceData> instances = {};
 std::vector<GLsync> fences = {};
 
-GLuint VAO, VBO, instanceVBO;
+GLuint VAO, VBO, instanceSSBO;
 Shader* ourShader;
 Texture* texture;
 glm::vec3 color = glm::vec3(1.f, 1.f, 1.f);
 float rotationY = 0.f;
 float rotationX = 0.f;
 int rLevel = 1;
-int maxRecursion = 13; // For unsigned long long this can be from 0 to 31 but we dont use this much
+int maxRecursion = 14; // For unsigned long long this can be from 0 to 31 but we dont use this much
 float cameraRadius = 3.f;
 
 #pragma endregion
@@ -262,7 +262,7 @@ void setupObjects()
     ourShader = new Shader(std::string(exeDirPath).append("/res/shaders/basic.vert").c_str(), std::string(exeDirPath).append("/res/shaders/basic.geom").c_str(), std::string(exeDirPath).append("/res/shaders/basic.frag").c_str());
 
     // Define a single point for instancing
-    glm::vec3 point = { 0.0f, 0.0f, 0.0f };
+    glm::vec3 point = glm::vec3(0.0f);
 
     texture->use(0);
     ourShader->use();
@@ -277,27 +277,24 @@ void setupObjects()
 
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &instanceVBO);
 
     glBindVertexArray(VAO);
-
-    // Vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(point), &point, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    // Instance buffer
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, (unsigned int)powf(4.0f, (float)maxRecursion) * sizeof(InstanceData), instances.data(), GL_STATIC_DRAW);
+    // SSBO for instance
+    glGenBuffers(1, &instanceSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, instanceSSBO);
 
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)0);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, scale));
+    // Max SSBO size
+    GLint maxSSBOSize = 0;
+    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &maxSSBOSize);
+    ONE_DRAW_TRANSFORMS = maxSSBOSize / sizeof(InstanceData);
 
-    glVertexAttribDivisor(1, 1);
-    glVertexAttribDivisor(2, 1);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, ONE_DRAW_TRANSFORMS * sizeof(InstanceData), nullptr, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -317,7 +314,7 @@ void tetrahedron(int level, int levelBefore)
 
     if (level == 1) {
         instances.clear();
-        instances.emplace_back(glm::vec3(0.f), 1.f);
+        instances.emplace_back(InstanceData{ glm::vec3(0.f), 1.f });
         return;
     }
 
@@ -340,7 +337,7 @@ void tetrahedron(int level, int levelBefore)
                 float scale = instance.scale * 0.5f;
                 glm::vec3 pos = instance.pos;
                 for (const auto& offset : offsets) {
-                    nextGen.emplace_back(pos + offset * scale, scale);
+                    nextGen.emplace_back(InstanceData{ pos + offset * scale, scale });
                 }
             }
             temps.swap(nextGen); // nextGen becomes temps for next iteration
@@ -354,7 +351,7 @@ void tetrahedron(int level, int levelBefore)
             for (size_t j = 0; j < size; j += 4) {
                 float scale = temps[j].scale * 2.f;
                 glm::vec3 pos = temps[j].pos - offsets[0] * temps[j].scale;
-                nextGen.emplace_back(pos, scale);
+                nextGen.emplace_back(InstanceData{ pos, scale });
             }
             temps.swap(nextGen);
         }
@@ -383,7 +380,7 @@ void update()
     while (offset < total) {
         size_t count = std::min(ONE_DRAW_TRANSFORMS, total - offset);
 
-        // Wait for GPU
+        // Fences
         if (frame < fences.size() && fences[frame]) {
             GLenum res = GL_WAIT_FAILED;
             while (res == GL_TIMEOUT_EXPIRED || res == GL_WAIT_FAILED) {
@@ -393,10 +390,11 @@ void update()
             fences[frame] = nullptr;
         }
 
-        // Stream data without intermediate copy
-        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        // SSBO mapping
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, instanceSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(InstanceData), nullptr, GL_DYNAMIC_DRAW);
         void* ptr = glMapBufferRange(
-            GL_ARRAY_BUFFER,
+            GL_SHADER_STORAGE_BUFFER,
             0,
             count * sizeof(InstanceData),
             GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT
@@ -404,12 +402,15 @@ void update()
 
         if (ptr) {
             memcpy(ptr, instances.data() + offset, count * sizeof(InstanceData));
-            glUnmapBuffer(GL_ARRAY_BUFFER);
+            glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
         }
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, instanceSSBO); // binding = 0
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
+        // Drawing
         glDrawArraysInstanced(GL_POINTS, 0, 1, count);
+
         if (frame >= fences.size()) fences.resize(frame + 1);
         fences[frame] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
@@ -538,7 +539,7 @@ void cleanup()
 {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &instanceVBO);
+    glDeleteBuffers(1, &instanceSSBO);
 
     delete ourShader;
     delete texture;

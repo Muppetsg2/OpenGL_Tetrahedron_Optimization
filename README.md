@@ -1,33 +1,127 @@
-[![](../../actions/workflows/cpp_cmake.yml/badge.svg)](../../actions)
+<div align='center'>
+  <img src="git_images/icon.png" alt="Logo" width="150" align="center"/>
+   
+  <div id="toc">
+    <ul style="list-style: none;">
+      <summary>
+        <h1>Tetrahedron Optimization 3.0</h1>
+      </summary>
+    </ul>
+  </div>
+</div>
 
-# OpenGLGP
+Small project to test how many recursion levels of **Sierpiński Tetrahedron**, GPU can draw using OpenGL.
 
-Najszybszym sposobem na zaczęcie przygody z OpenGL jest pobranie projektu opartego na CMake, który sam ściągnie odpowiednie biblioteki, dołączy je do projektu i odpowiednio skonfiguruje środowisko programistyczne. 
+![Preview](git_images/preview.jpg)
 
-Zanim zaczniemy będą nam potrzebne takie rzeczy jak:
+## 📚 Table of Contents
 
-* Zainstalowane IDE (środowisko programistyczne) Visual Studio 2019, CLion lub inne.
-* Zainstalowany program [CMake](https://cmake.org/download/) (należy pamiętać, aby podczas instalacji, dodać CMake do zmiennej PATH).
-* Zainstalowany program [Git](https://git-scm.com/downloads).
+- [🚀 Features](#-features)  
+- [🛠 Requirements](#-requirements)  
+- [🔧 Build Instructions](#-build-instructions)  
+- [📁 Project Structure](#-project-structure)  
+- [🧠 Rendering & Optimization Techniques](#-rendering--optimization-techniques)  
+- [📊 Performance Benchmark](#-performance-benchmark)  
+- [📜 License](#-license)  
+- [👤 Author](#-author)
 
-Kiedy jesteśmy już zaopatrzeni w ww. narzędzia, możemy ściągnąć lub sklonować repozytorium OpenGLGP.
+## 🚀 Features
 
-**UWAGA**: Użytkownicy systemu **Windows 10/11** powinni upewnić się, czy mają włączony **Tryb programisty (Developer Mode)**.
+- 🔺 **Recursive Sierpiński Tetrahedron** (Recursion levels: 0–14)
+- 🎨 Real-time background and object color customization
+- 🌀 Interactive scene rotation (X / Y axes)
+- 🖱️ Clean, minimal UI built with **Dear ImGui**
+- ⚡ High-performance rendering using:
+  - **Instancing**
+  - **SSBO (Shader Storage Buffer Objects)**
+  - **Geometry Shader-based rendering**
+  - **Recursive generation from previous tetrahedrons**
+  - **GPU buffer mapping with memory barriers (GLsync)**
+  - **Data is sent to shaders only when changed**
+- ✅ Fully compatible with **OpenGL 4.5+**
 
-Aby zbudować projekt, wchodzimy do folderu _OpenGLGP_ i wywołujemy następujące polecenie:
+## 🛠 Requirements
+
+- **C++17 or newer**
+- **OpenGL 4.5+**
+- Dependencies (via CPM.cmake or manual inclusion):
+  - [GLFW](https://github.com/glfw/glfw)
+  - [GLAD](https://glad.dav1d.de/)
+  - [GLM](https://github.com/g-truc/glm)
+  - [Dear ImGui](https://github.com/ocornut/imgui)
+  - [spdlog](https://github.com/gabime/spdlog)
+  - [freetype](https://github.com/freetype/freetype)
+  - [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h)
+
+## 🔧 Build Instructions
+
+### Step-by-step
+
+```bash
+git clone https://github.com/Muppetsg2/OpenGL_Tetrahedron_Optimization.git
+cd OpenGL_Tetrahedron_Optimization
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+./build/OpenGL_Tetrahedron_Optimization
 ```
-cmake -B Build
+> NOTE for Windows 10/11 users:\
+> Make sure Developer Mode is enabled in your system settings.\
+> Go to: `Settings > Privacy & security > For developers > Developer Mode`
+
+## 📁 Project Structure
+
+```bash
+├── cmake/                 # Cmake global settings
+├── src/                   # Main application source
+│   ├── CMakeLists.txt
+│   ├── main.cpp
+│   ├── pch.hpp
+│   ├── Shader.cpp
+│   ├── Shader.hpp
+│   ├── Texture.cpp
+│   ├── Texture.hpp
+├── res/                   # Resources
+│   ├── shaders/
+│   └──textures/
+├── git_images/            # Images for Readme
+├── thirdparty/            # External libraries
+├── CMakeLists.txt
+├── CMakeSettings.json
+└── README.md
 ```
 
-To polecenie stworzy w folderze Build solucję Visual Studio 2019 (zakładając, że działamy na komputerze wyposażonym w system Windows i IDE Visual Studio 2019).
+## 🧠 Rendering & Optimization Techniques
 
-By uruchomić projekt za pomocą VS 2019, wchodzimy do folderu _Build_, otwieramy solucję _OpenGLGP.sln_. Następnie, klikamy prawym przyciskiem myszy na projekcie _OpenGLGP_ i wybieramy opcję _Ustaw jako projekt domyślny / Set as a startup project_. Następnie budujemy i uruchamiamy aplikację.
+This project uses several GPU-friendly techniques to maintain real-time performance even at high recursion depths:
 
-Jeżeli korzystamy z IDE Clion (jest darmowa licencja dla studentów) lub Visual Studio 2019 Community, wystarczy wybrać w nim opcję otwarcia projektu, i z folderu OpenGLGP wybrać plik _CMakeLists.txt_. Następnie Clion / Visual Studio 2019 sam uruchomi skrypt CMake i pobierze odpowiednie biblioteki. Możemy teraz zbudować i uruchomić projekt.
+- **Instancing** – One draw call for thousands/millions of tetrahedrons.
+- **Shader Storage Buffer Objects (SSBO)** – Store instance transformation data efficiently on the GPU.
+- **Geometry Shader** – Dynamically constructs tetrahedron geometry from a single point per instance.
+- **Recursive Construction** – New tetrahedrons are built from the output of the previous recursion level.
+- **Mapped Buffer Updates** – Efficient CPU-to-GPU data transfer using glMapBufferRange.
+- **GLsync and Memory Barriers** – Ensures safe access to GPU buffers across frames.
+- **Delta Data Uploading** – Only update GPU buffers when instance data changes.
 
-W obu przypadkach powinno pojawić się okienko, w którym renderowane jest przykładowe GUI za pomocą biblioteki ImGUI. 
+## 📊 Performance Benchmark
 
-__Dokumentacja__ ImGUI znajduje się w pliku _thirdparty/imgui/imgui.cpp_.
+Frame rates measured at different recursion levels on multiple GPUs:
+| GPU	                 | Recursion 8 | Recursion 13 | Recursion 14 |
+|----------------------|-------------|--------------|--------------|
+|NVIDIA RTX 3060 Laptop|      240 FPS|        19 FPS|         3 FPS|
+|          ---         |      --- FPS|       --- FPS|       --- FPS|
 
-Widok poprawnie zbudowanej i uruchomionej przykładowej aplikacji:
-![Przykładowe okienko po poprawnym zbudowaniu projektu i uruchomieniu aplikacji](example.png)
+> ⚠️ Performance is affected by resolution, drivers, system load, and whether debug mode is enabled.
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**.\
+Feel free to fork, explore, optimize, or stress-test your GPU.
+
+If you share this project or build upon it, please credit the original author.
+
+## 👤 Author
+
+**Marceli Antosik**\
+This project is a personal experiment in real-time rendering and GPU optimization using OpenGL.
