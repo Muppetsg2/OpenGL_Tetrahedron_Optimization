@@ -10,9 +10,9 @@
   </div>
 </div>
 
-Small project to test how many recursion levels of **Sierpiński Tetrahedron**, GPU can draw using OpenGL.
+Small project to test how many recursion levels of **Sierpiński Tetrahedron**, GPU can draw using OpenGL. This project is a personal experiment in real-time rendering and GPU optimization using OpenGL.
 
-![Preview](git_images/preview.jpg)
+![Preview](git_images/preview.png)
 
 ## 📚 Table of Contents
 
@@ -106,22 +106,24 @@ This project uses several GPU-friendly techniques to maintain real-time performa
 
 Frame rates measured at different recursion levels on multiple GPUs:
 | GPU	                 | Recursion 8 | Recursion 13 | Recursion 14 |
-|----------------------|-------------|--------------|--------------|
-|NVIDIA RTX 3060 Laptop|      240 FPS|        19 FPS|         3 FPS|
-|          ---         |      --- FPS|       --- FPS|       --- FPS|
+|------------------------|-------------|--------------|--------------|
+|NVIDIA RTX 3060 Laptop  |     ~900 FPS|       ~19 FPS|        ~3 FPS|
+|          ---           |      --- FPS|       --- FPS|       --- FPS|
 
 > ⚠️ Performance is affected by resolution, drivers, system load, and whether debug mode is enabled.
 
----
+## ✨ Authors
+👤 **Marceli Antosik (Muppetsg2)**
+
+💡 If you have any questions or suggestions, feel free to contact me!
+
 
 ## 📜 License
+📝 This project is **MIT Licensed**.
 
-This project is licensed under the **MIT License**.\
-Feel free to fork, explore, optimize, or stress-test your GPU.
+📖 **MIT License Overview:**
+- ✅ Free to use, modify, and distribute.
+- ✅ Can be used in **commercial** and **non-commercial** projects.
+- ❗ Must include original license and copyright.
 
-If you share this project or build upon it, please credit the original author.
-
-## 👤 Author
-
-**Marceli Antosik**\
-This project is a personal experiment in real-time rendering and GPU optimization using OpenGL.
+See the [LICENSE](./LICENSE) file for more details.

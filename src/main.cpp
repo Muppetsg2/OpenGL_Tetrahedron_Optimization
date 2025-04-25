@@ -148,7 +148,7 @@ bool init()
     spdlog::info("Successfully created GLFW Window!");
 
     glfwMakeContextCurrent(window);
-    //glfwSwapInterval(1); // Enable VSync - fixes FPS at the refresh rate of your screen
+    glfwSwapInterval(0); // VSync ON/OFF - fixes FPS at the refresh rate of your screen (0 - OFF, 1 - ON)
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     bool err = !gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
