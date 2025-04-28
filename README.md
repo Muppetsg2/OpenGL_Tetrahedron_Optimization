@@ -105,12 +105,22 @@ This project uses several GPU-friendly techniques to maintain real-time performa
 ## 📊 Performance Benchmark
 
 Frame rates measured at different recursion levels on multiple GPUs:
-| GPU	                 | Recursion 8 | Recursion 13 | Recursion 14 |
-|------------------------|-------------|--------------|--------------|
-|NVIDIA RTX 3060 Laptop  |     ~900 FPS|       ~19 FPS|        ~3 FPS|
-|          ---           |      --- FPS|       --- FPS|       --- FPS|
+|            GPU           | Recursion 8 | Recursion 12 | Recursion 13 | Recursion 14 |
+|--------------------------|-------------|--------------|--------------|--------------|
+| NVIDIA RTX 3060 Laptop   |    ~1700 FPS|       ~76 FPS|       ~19 FPS|        ~3 FPS|
+| NVIDIA RTX 4070 Ti SUPER |    ~1700 FPS|      ~130 FPS|       ~37 FPS|        ~9 FPS|
 
 > ⚠️ Performance is affected by resolution, drivers, system load, and whether debug mode is enabled.
+
+Number of tetrahedrons in each recursion (4^(r-1)):
+| Recursion | Number of Tetrahedrons |
+|-----------|------------------------|
+|     8     |           16 384       |
+|    12     |        4 194 304       |
+|    13     |       16 777 216       |
+|    14     |       67 108 864       |
+
+> r - recursion where for r = 0 there is no object rendered
 
 ## ✨ Authors
 👤 **Marceli Antosik (Muppetsg2)**
