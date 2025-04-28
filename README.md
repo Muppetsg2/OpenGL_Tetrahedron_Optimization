@@ -112,15 +112,15 @@ Frame rates measured at different recursion levels on multiple GPUs:
 
 > ⚠️ Performance is affected by resolution, drivers, system load, and whether debug mode is enabled.
 
-Number of tetrahedrons in each recursion (4^(r-1)):
-| Recursion | Number of Tetrahedrons |
-|-----------|------------------------|
-|     8     |           16 384       |
-|    12     |        4 194 304       |
-|    13     |       16 777 216       |
-|    14     |       67 108 864       |
+Number of tetrahedrons generated at each recursion level (`4^(r-1)`):
+| Recursion Level | Number of Tetrahedrons |
+|-----------------|------------------------|
+|        8        |           16 384       |
+|       12        |        4 194 304       |
+|       13        |       16 777 216       |
+|       14        |       67 108 864       |
 
-> r - recursion where for r = 0 there is no object rendered
+> ℹ️ r — recursion level, where r = 0 means no object is rendered.
 
 ## ✨ Authors
 👤 **Marceli Antosik (Muppetsg2)**
