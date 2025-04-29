@@ -17,10 +17,10 @@ constexpr int32_t WINDOW_HEIGHT = 720;
 
 std::string exeDirPath;
 
-// Change these to lower GL version like 4.5 if GL 4.6 can't be initialized on your machine
-const     char* glsl_version = "#version 450";
+// GL version 4.3
+const     char* glsl_version = "#version 430";
 constexpr int32_t GL_VERSION_MAJOR = 4;
-constexpr int32_t GL_VERSION_MINOR = 5;
+constexpr int32_t GL_VERSION_MINOR = 3;
 
 glm::vec4 clear_color = glm::vec4(.55f, .55f, .55f, 1.f);
 
