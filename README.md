@@ -38,12 +38,12 @@ Small project to test how many recursion levels of **Sierpiński Tetrahedron**, 
   - **Recursive generation from previous tetrahedrons**
   - **GPU buffer mapping with memory barriers (GLsync)**
   - **Data is sent to shaders only when changed**
-- ✅ Fully compatible with **OpenGL 4.5+**
+- ✅ Fully compatible with **OpenGL 4.3+**
 
 ## 🛠 Requirements
 
 - **C++17 or newer**
-- **OpenGL 4.5+**
+- **OpenGL 4.3+**
 - Dependencies (via CPM.cmake or manual inclusion):
   - [GLFW](https://github.com/glfw/glfw)
   - [GLAD](https://glad.dav1d.de/)
@@ -71,22 +71,25 @@ cmake --build build --parallel
 ## 📁 Project Structure
 
 ```bash
-├── cmake/                 # Cmake global settings
-├── src/                   # Main application source
+├── cmake/                     # CMake utilities
+│   ├── CPM.cmake              # CPM settings
+│   └── global_settings.cmake  # CMake global settings
+├── git_images/                # Images for Readme
+├── res/                       # Resources
+│   ├── shaders/
+│   └── textures/
+├── src/                       # Main application source
 │   ├── CMakeLists.txt
 │   ├── main.cpp
 │   ├── pch.hpp
 │   ├── Shader.cpp
 │   ├── Shader.hpp
 │   ├── Texture.cpp
-│   ├── Texture.hpp
-├── res/                   # Resources
-│   ├── shaders/
-│   └──textures/
-├── git_images/            # Images for Readme
-├── thirdparty/            # External libraries
+│   └── Texture.hpp
+├── thirdparty/                # External libraries
 ├── CMakeLists.txt
 ├── CMakeSettings.json
+├── LICENSE
 └── README.md
 ```
 

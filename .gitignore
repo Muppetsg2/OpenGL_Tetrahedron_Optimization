@@ -8,6 +8,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 
+out/
+\.vs/
 [Bb]uild/
-*\.vs/
-*out/
+cpm_cache/
